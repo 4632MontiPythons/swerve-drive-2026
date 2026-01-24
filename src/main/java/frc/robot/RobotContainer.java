@@ -76,7 +76,12 @@ public class RobotContainer {
         // reset the field-centric heading on left bumper press(LB)
         xboxController.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
 
-
+        //FOR TESTING PURPOSES ONLY; REMOVE/CHANGE FOR COMP: reset position to in front of the center of the red alliance hub, facing red alliance wall
+        xboxController.leftTrigger().onTrue(
+            new InstantCommand(() -> drivetrain.resetPose(
+            new Pose2d((492.88+15)*0.0254, (158.32)*0.0254, Rotation2d.fromDegrees(0)) //0.0254 converts from in to m
+            ))
+        );
 
         drivetrain.registerTelemetry(logger::telemeterize);
     }

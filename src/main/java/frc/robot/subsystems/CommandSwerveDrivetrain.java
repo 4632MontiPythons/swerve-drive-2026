@@ -19,6 +19,7 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.Notifier;
 import edu.wpi.first.wpilibj.RobotController;
+import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
@@ -31,6 +32,7 @@ import frc.robot.generated.TunerConstants.TunerSwerveDrivetrain;
  * Subsystem so it can easily be used in command-based projects.
  */
 public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Subsystem {
+    private final Field2d m_field = new Field2d(); // dashboard pose visualization
     private static final double kSimLoopPeriod = 0.005; // 5 ms
     private Notifier m_simNotifier = null;
     private double m_lastSimTime;
@@ -120,14 +122,13 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      * @param drivetrainConstants Drivetrain-wide constants for the swerve drive
      * @param modules             Constants for each specific module
      */
-    public CommandSwerveDrivetrain(
-            SwerveDrivetrainConstants drivetrainConstants,
-            SwerveModuleConstants<?, ?, ?>... modules) {
+    public CommandSwerveDrivetrain(SwerveDrivetrainConstants drivetrainConstants,
+                                   SwerveModuleConstants<?, ?, ?>... modules) {
         super(drivetrainConstants, modules);
-        if (Utils.isSimulation()) {
-            startSimThread();
-        }
+        SmartDashboard.putData("Field", m_field);
+        if (Utils.isSimulation()) startSimThread();
     }
+
 
     /**
      * Constructs a CTRE SwerveDrivetrain using the specified constants.
@@ -140,18 +141,16 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      *
      * @param drivetrainConstants     Drivetrain-wide constants for the swerve drive
      * @param odometryUpdateFrequency The frequency to run the odometry loop. If
-     *                                unspecified or set to 0 Hz, this is 250 Hz on
-     *                                CAN FD, and 100 Hz on CAN 2.0.
+     * unspecified or set to 0 Hz, this is 250 Hz on
+     * CAN FD, and 100 Hz on CAN 2.0.
      * @param modules                 Constants for each specific module
      */
-    public CommandSwerveDrivetrain(
-            SwerveDrivetrainConstants drivetrainConstants,
-            double odometryUpdateFrequency,
-            SwerveModuleConstants<?, ?, ?>... modules) {
+    public CommandSwerveDrivetrain(SwerveDrivetrainConstants drivetrainConstants,
+                                   double odometryUpdateFrequency,
+                                   SwerveModuleConstants<?, ?, ?>... modules) {
         super(drivetrainConstants, odometryUpdateFrequency, modules);
-        if (Utils.isSimulation()) {
-            startSimThread();
-        }
+        SmartDashboard.putData("Field", m_field);
+        if (Utils.isSimulation()) startSimThread();
     }
 
     /**
@@ -164,34 +163,40 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      * getters in the classes.
      *
      * @param drivetrainConstants       Drivetrain-wide constants for the swerve
-     *                                  drive
+     * drive
      * @param odometryUpdateFrequency   The frequency to run the odometry loop. If
-     *                                  unspecified or set to 0 Hz, this is 250 Hz
-     *                                  on
-     *                                  CAN FD, and 100 Hz on CAN 2.0.
+     * unspecified or set to 0 Hz, this is 250 Hz
+     * on
+     * CAN FD, and 100 Hz on CAN 2.0.
      * @param odometryStandardDeviation The standard deviation for odometry
-     *                                  calculation
-     *                                  in the form [x, y, theta]ᵀ, with units in
-     *                                  meters
-     *                                  and radians
+     * calculation
+     * in the form [x, y, theta]ᵀ, with units in
+     * meters
+     * and radians
      * @param visionStandardDeviation   The standard deviation for vision
-     *                                  calculation
-     *                                  in the form [x, y, theta]ᵀ, with units in
-     *                                  meters
-     *                                  and radians
+     * calculation
+     * in the form [x, y, theta]ᵀ, with units in
+     * meters
+     * and radians
      * @param modules                   Constants for each specific module
      */
-    public CommandSwerveDrivetrain(
-            SwerveDrivetrainConstants drivetrainConstants,
-            double odometryUpdateFrequency,
-            Matrix<N3, N1> odometryStandardDeviation,
-            Matrix<N3, N1> visionStandardDeviation,
-            SwerveModuleConstants<?, ?, ?>... modules) {
-        super(drivetrainConstants, odometryUpdateFrequency, odometryStandardDeviation, visionStandardDeviation,
-                modules);
-        if (Utils.isSimulation()) {
-            startSimThread();
-        }
+    public CommandSwerveDrivetrain(SwerveDrivetrainConstants drivetrainConstants,
+                                   double odometryUpdateFrequency,
+                                   Matrix<N3, N1> odometryStdDevs,
+                                   Matrix<N3, N1> visionStdDevs,
+                                   SwerveModuleConstants<?, ?, ?>... modules) {
+        super(drivetrainConstants, odometryUpdateFrequency, odometryStdDevs, visionStdDevs, modules);
+        SmartDashboard.putData("Field", m_field);
+        if (Utils.isSimulation()) startSimThread();
+    }
+
+    /**
+     * Returns the current estimated pose of the robot from the CTRE SwerveDrivetrain.
+     * @return The Pose2d of the robot.
+     */
+    public Pose2d getEstimatedPose() {
+        // Return the pose calculated by the underlying TunerSwerveDrivetrain/SwerveDrivetrain
+        return this.getState().Pose;
     }
 
     /**
@@ -230,6 +235,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
     @Override
     public void periodic() {
+        // Update the dashboard field with the pose from the CTRE estimator
+        m_field.setRobotPose(getEstimatedPose());
+        
         /*
          * Periodically try to apply the operator perspective.
          * If we haven't applied the operator perspective before, then we should apply
@@ -257,7 +265,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         SmartDashboard.putNumber("BL Steer Angle", getModule(2).getCurrentState().angle.getRotations());
         SmartDashboard.putNumber("BR Steer Angle", getModule(3).getCurrentState().angle.getRotations());
         SmartDashboard.putNumber("Yaw (deg)", getPigeon2().getYaw().getValue().in(Degrees));
-
+        SmartDashboard.putNumber("Estimated X (m)", getEstimatedPose().getX());
+        SmartDashboard.putNumber("Estimated Y (m)", getEstimatedPose().getY());
+        SmartDashboard.putNumber("Estimated Rotation (deg)", getEstimatedPose().getRotation().getDegrees());
     }
 
     private void startSimThread() {
@@ -281,9 +291,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      * while still accounting for measurement noise.
      *
      * @param visionRobotPoseMeters The pose of the robot as measured by the vision
-     *                              camera.
+     * camera.
      * @param timestampSeconds      The timestamp of the vision measurement in
-     *                              seconds.
+     * seconds.
      */
     @Override
     public void addVisionMeasurement(Pose2d visionRobotPoseMeters, double timestampSeconds) {
@@ -300,13 +310,13 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      * {@link #setVisionMeasurementStdDevs(Matrix)} or this method.
      *
      * @param visionRobotPoseMeters    The pose of the robot as measured by the
-     *                                 vision camera.
+     * vision camera.
      * @param timestampSeconds         The timestamp of the vision measurement in
-     *                                 seconds.
+     * seconds.
      * @param visionMeasurementStdDevs Standard deviations of the vision pose
-     *                                 measurement
-     *                                 in the form [x, y, theta]ᵀ, with units in
-     *                                 meters and radians.
+     * measurement
+     * in the form [x, y, theta]ᵀ, with units in
+     * meters and radians.
      */
     @Override
     public void addVisionMeasurement(
