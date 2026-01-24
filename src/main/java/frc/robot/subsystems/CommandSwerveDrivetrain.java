@@ -256,6 +256,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         SmartDashboard.putNumber("FR Steer Angle", getModule(1).getCurrentState().angle.getRotations());
         SmartDashboard.putNumber("BL Steer Angle", getModule(2).getCurrentState().angle.getRotations());
         SmartDashboard.putNumber("BR Steer Angle", getModule(3).getCurrentState().angle.getRotations());
+        SmartDashboard.putNumber("Yaw (deg)", getPigeon2().getYaw().getValue().in(Degrees));
+
     }
 
     private void startSimThread() {
