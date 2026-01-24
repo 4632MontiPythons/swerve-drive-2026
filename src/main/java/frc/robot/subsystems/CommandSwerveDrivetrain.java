@@ -11,6 +11,7 @@ import com.ctre.phoenix6.swerve.SwerveModuleConstants;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import edu.wpi.first.math.Matrix;
+import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.numbers.N1;
@@ -26,6 +27,7 @@ import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 
 import frc.robot.generated.TunerConstants.TunerSwerveDrivetrain;
+import frc.robot.util.LimelightHelpers;
 
 /**
  * Class that extends the Phoenix 6 SwerveDrivetrain class and implements
@@ -194,15 +196,13 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      * Returns the current estimated pose of the robot from the CTRE SwerveDrivetrain.
      * @return The Pose2d of the robot.
      */
-    public Pose2d getEstimatedPose() {
-        // Return the pose calculated by the underlying TunerSwerveDrivetrain/SwerveDrivetrain
-        return this.getState().Pose;
+    public Pose2d getEstimatedPose() { 
+        return this.getState().Pose; //Return the pose calculated by the underlying TunerSwerveDrivetrain/SwerveDrivetrain
     }
 
     /**
      * Returns a command that applies the specified control request to this swerve
      * drivetrain.
-     *
      * @param request Function returning the request to apply
      * @return Command to run
      */
@@ -213,7 +213,6 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     /**
      * Runs the SysId Quasistatic test in the given direction for the routine
      * specified by {@link #m_sysIdRoutineToApply}.
-     *
      * @param direction Direction of the SysId Quasistatic test
      * @return Command to run
      */
@@ -225,7 +224,6 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     /**
      * Runs the SysId Dynamic test in the given direction for the routine
      * specified by {@link #m_sysIdRoutineToApply}.
-     *
      * @param direction Direction of the SysId Dynamic test
      * @return Command to run
      */
@@ -236,8 +234,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     @Override
     public void periodic() {
         // Update the dashboard field with the pose from the CTRE estimator
+        updateVision();
         m_field.setRobotPose(getEstimatedPose());
-        
         /*
          * Periodically try to apply the operator perspective.
          * If we haven't applied the operator perspective before, then we should apply
@@ -270,6 +268,22 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         SmartDashboard.putNumber("Estimated Rotation (deg)", getEstimatedPose().getRotation().getDegrees());
     }
 
+    private void updateVision(){
+        //First we are sending our robot's orientation(from pigeon) to the limelight so that it can effectively calculate position
+        double yawRate=getPigeon2().getAngularVelocityZWorld().getValueAsDouble();
+        LimelightHelpers.SetRobotOrientation("limelight", 
+        getPigeon2().getYaw().getValueAsDouble(),
+        yawRate, 0, 0, 0, 0);
+        
+        var mt2Result = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight"); //grab LL estimate
+
+        if (mt2Result != null && mt2Result.tagCount > 0 && Math.abs(yawRate)<720 && mt2Result.avgTagDist<6) { //Only use data if we're not spinning too quickly or too far from tags
+            double xyStdDev = Math.max(0.01,0.02 * mt2Result.avgTagDist); //0.02 meters of SD per meter of distance from tags; will always be at least 0.01 to prevent instability when very close to tag
+            var visionTrustMatrix = VecBuilder.fill(xyStdDev,xyStdDev, 999999); //don't use LL angle because the robot initially got that from the pigeon, and it would double-count
+            addVisionMeasurement(mt2Result.pose,mt2Result.timestampSeconds,visionTrustMatrix); //push vision measurement to pose estimator
+        }
+    }
+
     private void startSimThread() {
         m_lastSimTime = Utils.getCurrentTimeSeconds();
 
@@ -283,20 +297,6 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             updateSimState(deltaTime, RobotController.getBatteryVoltage());
         });
         m_simNotifier.startPeriodic(kSimLoopPeriod);
-    }
-
-    /**
-     * Adds a vision measurement to the Kalman Filter. This will correct the
-     * odometry pose estimate
-     * while still accounting for measurement noise.
-     * @param visionRobotPoseMeters The pose of the robot as measured by the vision
-     * camera.
-     * @param timestampSeconds      The timestamp of the vision measurement in
-     * seconds.
-     */
-    @Override
-    public void addVisionMeasurement(Pose2d visionRobotPoseMeters, double timestampSeconds) {
-        super.addVisionMeasurement(visionRobotPoseMeters, Utils.fpgaToCurrentTime(timestampSeconds));
     }
 
     /**
