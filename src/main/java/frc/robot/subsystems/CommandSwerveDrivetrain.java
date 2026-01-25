@@ -219,6 +219,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      */
     public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {
         SmartDashboard.putNumber("Running SysID", 1);
+        System.out.println("Running SysID");
         return m_sysIdRoutineToApply.quasistatic(direction);
     }
 
