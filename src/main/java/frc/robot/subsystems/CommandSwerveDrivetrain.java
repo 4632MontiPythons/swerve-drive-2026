@@ -28,6 +28,7 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 
 import frc.robot.generated.TunerConstants.TunerSwerveDrivetrain;
 import frc.robot.util.LimelightHelpers;
+import frc.robot.Constants;
 
 /**
  * Class that extends the Phoenix 6 SwerveDrivetrain class and implements
@@ -125,12 +126,12 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      * @param modules             Constants for each specific module
      */
     public CommandSwerveDrivetrain(SwerveDrivetrainConstants drivetrainConstants,
-                                   SwerveModuleConstants<?, ?, ?>... modules) {
+            SwerveModuleConstants<?, ?, ?>... modules) {
         super(drivetrainConstants, modules);
         SmartDashboard.putData("Field", m_field);
-        if (Utils.isSimulation()) startSimThread();
+        if (Utils.isSimulation())
+            startSimThread();
     }
-
 
     /**
      * Constructs a CTRE SwerveDrivetrain using the specified constants.
@@ -148,11 +149,12 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      * @param modules                 Constants for each specific module
      */
     public CommandSwerveDrivetrain(SwerveDrivetrainConstants drivetrainConstants,
-                                   double odometryUpdateFrequency,
-                                   SwerveModuleConstants<?, ?, ?>... modules) {
+            double odometryUpdateFrequency,
+            SwerveModuleConstants<?, ?, ?>... modules) {
         super(drivetrainConstants, odometryUpdateFrequency, modules);
         SmartDashboard.putData("Field", m_field);
-        if (Utils.isSimulation()) startSimThread();
+        if (Utils.isSimulation())
+            startSimThread();
     }
 
     /**
@@ -167,9 +169,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      * @param drivetrainConstants       Drivetrain-wide constants for the swerve
      * drive
      * @param odometryUpdateFrequency   The frequency to run the odometry loop. If
-     * unspecified or set to 0 Hz, this is 250 Hz
-     * on
-     * CAN FD, and 100 Hz on CAN 2.0.
+     * unspecified or set to 0 Hz, this is 250 Hz on CAN FD, and 100 Hz on CAN 2.0.
      * @param odometryStandardDeviation The standard deviation for odometry
      * calculation
      * in the form [x, y, theta]ᵀ, with units in
@@ -183,20 +183,21 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      * @param modules                   Constants for each specific module
      */
     public CommandSwerveDrivetrain(SwerveDrivetrainConstants drivetrainConstants,
-                                   double odometryUpdateFrequency,
-                                   Matrix<N3, N1> odometryStdDevs,
-                                   Matrix<N3, N1> visionStdDevs,
-                                   SwerveModuleConstants<?, ?, ?>... modules) {
+            double odometryUpdateFrequency,
+            Matrix<N3, N1> odometryStdDevs,
+            Matrix<N3, N1> visionStdDevs,
+            SwerveModuleConstants<?, ?, ?>... modules) {
         super(drivetrainConstants, odometryUpdateFrequency, odometryStdDevs, visionStdDevs, modules);
         SmartDashboard.putData("Field", m_field);
-        if (Utils.isSimulation()) startSimThread();
+        if (Utils.isSimulation())
+            startSimThread();
     }
 
     /**
      * Returns the current estimated pose of the robot from the CTRE SwerveDrivetrain.
      * @return The Pose2d of the robot.
      */
-    public Pose2d getEstimatedPose() { 
+    public Pose2d getEstimatedPose() {
         return this.getState().Pose; //Return the pose calculated by the underlying TunerSwerveDrivetrain/SwerveDrivetrain
     }
 
@@ -268,19 +269,23 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         SmartDashboard.putNumber("Estimated Rotation (deg)", getEstimatedPose().getRotation().getDegrees());
     }
 
-    private void updateVision(){
+    private void updateVision() {
         //First we are sending our robot's orientation(from pigeon) to the limelight so that it can effectively calculate position
-        double yawRate=getPigeon2().getAngularVelocityZWorld().getValueAsDouble();
-        LimelightHelpers.SetRobotOrientation("limelight", 
-        getPigeon2().getYaw().getValueAsDouble(),
-        yawRate, 0, 0, 0, 0);
-        
+        double yawRate = getPigeon2().getAngularVelocityZWorld().getValueAsDouble();
+        LimelightHelpers.SetRobotOrientation("limelight",
+                getPigeon2().getYaw().getValueAsDouble(),
+                yawRate, 0, 0, 0, 0);
+
         var mt2Result = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight"); //grab LL estimate
 
-        if (mt2Result != null && mt2Result.tagCount > 0 && Math.abs(yawRate)<720 && mt2Result.avgTagDist<6) { //Only use data if we're not spinning too quickly or too far from tags
-            double xyStdDev = Math.max(0.01,0.02 * mt2Result.avgTagDist); //0.02 meters of SD per meter of distance from tags; will always be at least 0.01 to prevent instability when very close to tag
-            var visionTrustMatrix = VecBuilder.fill(xyStdDev,xyStdDev, 999999); //don't use LL angle because the robot initially got that from the pigeon, and it would double-count
-            addVisionMeasurement(mt2Result.pose,mt2Result.timestampSeconds,visionTrustMatrix); //push vision measurement to pose estimator
+        if (mt2Result != null
+                && mt2Result.tagCount >= Constants.Vision.minTags
+                && Math.abs(yawRate) < Constants.Vision.maxYawRate_DegPerSec
+                && mt2Result.avgTagDist < Constants.Vision.maxTagDistance_Meters) {
+            double xyStdDev = Math.max(Constants.Vision.minStdDev_Meters,
+                    Constants.Vision.stdDevPerMeter * mt2Result.avgTagDist);
+            var visionTrustMatrix = VecBuilder.fill(xyStdDev, xyStdDev, 999999); //don't trust angle because LL initially got that from the pigeon, and it would double-count
+            addVisionMeasurement(mt2Result.pose, mt2Result.timestampSeconds, visionTrustMatrix); //push vision measurement to pose estimator
         }
     }
 
