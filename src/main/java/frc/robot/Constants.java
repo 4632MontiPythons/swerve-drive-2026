@@ -51,19 +51,27 @@ public final class Constants {
         //std dev measurements in meters
         public static final double baseXYStdDev = 0.06;
         //divide by number of tags visible
-        //multiply by 1+(yawDegPerSec*yawRateCoefficent)
+        //multiply by 1+(|yawDegPerSec|*yawRateCoefficent)
         //add avg tag distance * stdDevPerMeter
-        public static final double maxTagDistance_Meters = 5.0; //ignore visual measurements when average distance to tags greater than this value.
+        public static final double maxTagDistance_Meters = 4.0; //ignore visual measurements when average distance to tags greater than this value.
         public static final double maxYawRate_DegPerSec = 450; //ignore visual measurements when yaw rate is greater than this value
         public static final double yawRateCoefficent = (1.0/200.0);
         public static final double stdDevPerMeter = 0.02; //Std dev increase per meter
         public static final double maxPoseJump_Meters = 1.0; //ignore visual measurements when distance from current pose to vision pose is greater than this value
+
+        // megatag1 settings, just used for yaw, set it to be very picky. will only really work when close to the tag triplets by the hub
+        public static final int megaTag1MinTagsForYaw = 3;
+        public static final double megaTag1MaxDistance = 2.0;
+        public static final double megaTag1maxYawRate_DegPerSec = 50.0;
+        public static final double megaTag1YawStdDev = Units.degreesToRadians(2.0);
+
     }
 
     public static final class OI {
         public static final double deadband = 0.10; //percentage of max speed/rotational rate. e.g. 10% deadband should be 0.10
         public static final int driverControllerPort = 0;
-        public static final double slewRate = 3.0; //limits change to 100k% per second, meaning would take 1/k seconds to go from 0 to full throttle
+        public static final double slewRate = 3.0; //limits change to (100*k)% per second, meaning would take 1/k seconds to go from 0 to full throttle
+        public static final double rotationSlewRate = 6.0;
     }
     // public static final class Shooter {
     //     public static final Translation2d redGoalXY = new Translation2d(11.915394, 4.034536); //meters
